@@ -4,6 +4,8 @@ from deepsensor.model.convnp import ConvNP
 from typing import Optional
 import torch
 from torch.cuda.amp import GradScaler
+
+
 import numpy as np
 
 import lab as B
@@ -77,7 +79,7 @@ def train_epoch(
             TF or Torch optimizer. Defaults to None. If None,
             :class:`tensorflow:tensorflow.keras.optimizer.Adam` is used.
         scaler (bool, optional):
-            Whether to use grad scaler for mixed precision to speed up training. 
+            Whether to use grad scaler for mixed precision to speed up training.
         progress_bar (bool, optional):
             Whether to display a progress bar. Defaults to False.
         tqdm_notebook (bool, optional):
@@ -110,7 +112,7 @@ def train_epoch(
         if opt is None:
             opt = optim.Adam(model.model.parameters(), lr=lr)
 
-        def train_step(tasks, opt, scaler=None):
+        def train_step(tasks, scaler=None):
             if not isinstance(tasks, list):
                 tasks = [tasks]
             
@@ -146,6 +148,21 @@ def train_epoch(
             
             return mean_batch_loss.detach().cpu().numpy()  # Return the loss value (detached)
 
+        
+        """
+        def train_step(tasks):
+            if not isinstance(tasks, list):
+                tasks = [tasks]
+            opt.zero_grad()
+            task_losses = []
+            for task in tasks:
+                task_losses.append(model.loss_fn(task, normalise=True))
+            mean_batch_loss = B.mean(B.stack(*task_losses))
+            mean_batch_loss.backward()
+            opt.step()
+            return mean_batch_loss.detach().cpu().numpy()
+        """
+
     else:
         raise NotImplementedError(f"Backend {deepsensor.backend.str} not implemented")
 
@@ -169,7 +186,7 @@ def train_epoch(
             )
         else:
             task = tasks[batch_i]
-        batch_loss = train_step(task)
+        batch_loss = train_step(task, opt, scaler)
         batch_losses.append(batch_loss)
 
     return batch_losses
@@ -183,6 +200,7 @@ class Trainer:
     """
 
     def __init__(self, model: ConvNP, lr: float = 5e-5):
+        print('running edittable model train model')
         if deepsensor.backend.str == "tf":
             import tensorflow as tf
 
@@ -208,7 +226,7 @@ class Trainer:
             tasks=tasks,
             batch_size=batch_size,
             opt=self.opt,
-            scaler=scaler,
+            scaler=scaler,  # Pass scaler into train_epoch
             progress_bar=progress_bar,
             tqdm_notebook=tqdm_notebook,
         )
