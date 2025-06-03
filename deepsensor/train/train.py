@@ -112,7 +112,7 @@ def train_epoch(
         if opt is None:
             opt = optim.Adam(model.model.parameters(), lr=lr)
 
-        def train_step(tasks, scaler=None):
+        def train_step(tasks, opt, scaler=None):
             if not isinstance(tasks, list):
                 tasks = [tasks]
             
@@ -172,7 +172,7 @@ def train_epoch(
             )
         else:
             task = tasks[batch_i]
-        batch_loss = train_step(task, scaler)
+        batch_loss = train_step(task, opt, scaler)
         batch_losses.append(batch_loss)
 
     return batch_losses
